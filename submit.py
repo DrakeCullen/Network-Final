@@ -11,6 +11,8 @@ import requests.exceptions
 import kattis
 import time
 
+from scipy.fftpack import diff
+
 # Python 2/3 compatibility
 if sys.version_info[0] >= 3:
     import configparser
@@ -225,7 +227,7 @@ def submit(submit_url, cookies, problem, language, files, mainclass='', tag=''):
                                sub_file.read(),
                                'application/octet-stream')))
 
-    return requests.post(submit_url, data=data, files=sub_files, cookies=cookies, headers=_HEADERS)
+    return data, requests.post(submit_url, data=data, files=sub_files, cookies=cookies, headers=_HEADERS)
 
 
 def confirm_or_die(problem, language, files, mainclass, tag):
@@ -245,7 +247,7 @@ def confirm_or_die(problem, language, files, mainclass, tag):
         sys.exit(1)
 
 
-def open_submission(submit_response, cfg):
+def open_submission(submit_response, cfg, problem_data):
     submissions_url = get_url(cfg, 'submissionsurl', 'submissions')
     m = re.search(r'Submission ID: (\d+)', submit_response)
     if m:
@@ -256,11 +258,14 @@ def open_submission(submit_response, cfg):
         login = {"user": "drake-cullen-2246", "password": "xtRkswE6", "script": "true"}
         res = requests.post("https://open.kattis.com/login", data=login)
         result = requests.get(url,data=data,cookies=res.cookies)
+        #print(problem_data)
+        print(result.text)
         if (result.text.find("accepted") == -1):
             print("Rejected")
         else:
-            print("Accepted")
-            
+            difficulty = requests.get(f"https://open.kattis.com/problems/{problem_data['problem']}").text.split("Difficulty",1)[1][18:21]
+            print("Accepted", difficulty)
+            requests.get(f"http://172.31.0.151/{difficulty}")
 
 def main():
     parser = argparse.ArgumentParser(prog='kattis', description='Submit a solution to Kattis')
@@ -338,7 +343,7 @@ extension "%s"''' % (ext,))
         confirm_or_die(problem, language, files, mainclass, tag)
 
     try:
-        result = submit(submit_url,
+        data, result = submit(submit_url,
                         login_reply.cookies,
                         problem,
                         language,
@@ -363,7 +368,7 @@ extension "%s"''' % (ext,))
     print(plain_result)
 
     try:
-        open_submission(plain_result, cfg)
+        open_submission(plain_result, cfg, data)
     except configparser.NoOptionError:
         pass
 
