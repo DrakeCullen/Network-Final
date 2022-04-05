@@ -27,6 +27,15 @@ ported for sparkfun esp32
 
 #include <WiFi.h>
 
+#include <ESP32Servo.h>
+
+Servo myservo;  // create servo object to control a servo
+// 16 servo objects can be created on the ESP32
+
+int pos = 0;    // variable to store the servo position
+// Recommended PWM GPIO pins on the ESP32 include 2,4,12-19,21-23,25-27,32-33 
+int servoPin = 14;
+
 const char* ssid     = "CSC WiFi";
 const char* password = "WeAreHackers";
 
@@ -34,6 +43,9 @@ WiFiServer server(80);
 
 void setup()
 {
+    myservo.setPeriodHertz(50);    // standard 50 hz servo
+    myservo.attach(servoPin, 500, 2400); // attaches the servo on pin 18 to the servo object
+    
     Serial.begin(115200);
     pinMode(5, OUTPUT);      // set the LED pin mode
 
@@ -73,7 +85,7 @@ void loop(){
     while (client.connected()) {            // loop while the client's connected
       if (client.available()) {             // if there's bytes to read from the client,
         char c = client.read();             // read a byte, then
-        Serial.write(c);                    // print it out the serial monitor
+        //Serial.write(c);                    // print it out the serial monitor
         if (c == '\n') {                    // if the byte is a newline character
 
           // if the current line is blank, you got two newline characters in a row.
@@ -101,14 +113,18 @@ void loop(){
         }
 
         // Check to see if the client request was "GET /H" or "GET /L":
-        if (currentLine.endsWith("GET /H")) {
-          digitalWrite(5, HIGH);               // GET /H turns the LED on
+        if (currentLine.length()==17 && currentLine.startsWith("GET") && !currentLine.startsWith("GET /favicon.ico") && currentLine.endsWith("HTTP/1.1")) {
+          Serial.println("Look Here");
+          Serial.println(currentLine.substring(5,8));
+          Serial.println(currentLine);
+          myservo.write(random(180));               // GET /H turns the LED on
         }
-        if (currentLine.endsWith("GET /L")) {
-          digitalWrite(5, LOW);                // GET /L turns the LED off
-        }
+//        if (currentLine.endsWith("GET /0")) {
+//          myservo.write(0);                // GET /L turns the LED off
+//        }
       }
     }
+    
     // close the connection:
     client.stop();
     Serial.println("Client Disconnected.");
