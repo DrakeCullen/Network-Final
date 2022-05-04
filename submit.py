@@ -12,62 +12,16 @@ import kattis
 import time
 
 from scipy.fftpack import diff
-
-# Python 2/3 compatibility
-if sys.version_info[0] >= 3:
-    import configparser
-else:
-    # Python 2, import modules with Python 3 names
-    import ConfigParser as configparser
-
-# End Python 2/3 compatibility
+import configparser
 
 _DEFAULT_CONFIG = '/usr/local/etc/kattisrc'
-_LANGUAGE_GUESS = {
-    '.c': 'C',
-    '.c++': 'C++',
-    '.cc': 'C++',
-    '.c#': 'C#',
-    '.cpp': 'C++',
-    '.cs': 'C#',
-    '.cxx': 'C++',
-    '.cbl': 'COBOL',
-    '.cob': 'COBOL',
-    '.cpy': 'COBOL',
-    '.fs': 'F#',
-    '.go': 'Go',
-    '.h': 'C++',
-    '.hs': 'Haskell',
-    '.java': 'Java',
-    '.js': 'JavaScript',
-    '.kt': 'Kotlin',
-    '.lisp': 'Common Lisp',
-    '.cl': 'Common Lisp',
-    '.m': 'Objective-C',
-    '.ml': 'OCaml',
-    '.pas': 'Pascal',
-    '.php': 'PHP',
-    '.pl': 'Prolog',
-    '.rb': 'Ruby',
-    '.rs': 'Rust',
-    '.scala': 'Scala',
-}
-_GUESS_MAINCLASS = {'Java', 'Scala', 'Kotlin'}
-_GUESS_MAINFILE = {'Python 2', 'Python 3', 'PHP', 'JavaScript', 'Rust', 'Pascal'}
-
-_HEADERS = {'User-Agent': 'kattis-cli-submit'}
-
 
 class ConfigError(Exception):
     pass
 
 
 def get_url(cfg, option, default):
-    if cfg.has_option('kattis', option):
-        return cfg.get('kattis', option)
-    else:
-        return 'https://%s/%s' % (cfg.get('kattis', 'hostname'), default)
-
+    return cfg.get('kattis', option)
 
 def get_config():
     """Returns a ConfigParser object for the .kattisrc file(s)
@@ -95,77 +49,8 @@ submissionurl: https://<kattis>/submit
 submissionsurl: https://<kattis>/submissions''')
     return cfg
 
-
-def is_python2(files):
-    python2 = re.compile(r'^\s*\bprint\b *[^ \(\),\]]|\braw_input\b')
-    for filename in files:
-        try:
-            with open(filename) as f:
-                for index, line in enumerate(f):
-                    if index == 0 and line.startswith('#!'):
-                        if 'python2' in line:
-                            return True
-                        if 'python3' in line:
-                            return False
-                    if python2.search(line.split('#')[0]):
-                        return True
-        except IOError:
-            return False
-    return False
-
-
-def guess_language(ext, files):
-    if ext == ".C":
-        return "C++"
-    ext = ext.lower()
-    if ext == ".h":
-        if any(f.endswith(".c") for f in files):
-            return "C"
-        else:
-            return "C++"
-    if ext == ".py":
-        if is_python2(files):
-            return "Python 2"
-        else:
-            return "Python 3"
-    return _LANGUAGE_GUESS.get(ext, None)
-
-
-def guess_mainfile(language, files):
-    for filename in files:
-        if os.path.splitext(os.path.basename(filename))[0] in ['main', 'Main']:
-            return filename
-    for filename in files:
-        try:
-            with open(filename) as f:
-                conts = f.read()
-                if language in ['Java', 'Rust', 'Scala', 'Kotlin'] and re.search(r' main\s*\(', conts):
-                    return filename
-                if language == 'Pascal' and re.match(r'^\s*[Pp]rogram\b', conts):
-                    return filename
-        except IOError:
-            pass
-    return files[0]
-
-
-def guess_mainclass(language, files):
-    if language in _GUESS_MAINFILE and len(files) > 1:
-        return os.path.basename(guess_mainfile(language, files))
-    if language in _GUESS_MAINCLASS:
-        mainfile = os.path.basename(guess_mainfile(language, files))
-        name = os.path.splitext(mainfile)[0]
-        if language == 'Kotlin':
-            return name[0].upper() + name[1:] + 'Kt'
-        return name
-    return None
-
-
 def login(login_url, username, password=None, token=None):
-    """Log in to Kattis.
-
-    At least one of password or token needs to be provided.
-
-    Returns a requests.Response with cookies needed to be able to submit
+    """Log in to Kattis. Returns a requests.Response with cookies needed to be able to submit
     """
     login_args = {'user': username, 'script': 'true'}
     if password:
@@ -173,24 +58,15 @@ def login(login_url, username, password=None, token=None):
     if token:
         login_args['token'] = token
 
-    return requests.post(login_url, data=login_args, headers=_HEADERS)
-
+    return requests.post(login_url, data=login_args, headers={'User-Agent': 'kattis-cli-submit'})
 
 def login_from_config(cfg):
-    """Log in to Kattis using the access information in a kattisrc file
-
+    """Log in to Kattis using the access information in a kattisrc fil
     Returns a requests.Response with cookies needed to be able to submit
     """
     username = cfg.get('user', 'username')
     password = token = None
-    try:
-        password = cfg.get('user', 'password')
-    except configparser.NoOptionError:
-        pass
-    try:
-        token = cfg.get('user', 'token')
-    except configparser.NoOptionError:
-        pass
+    token = cfg.get('user', 'token')
     if password is None and token is None:
         raise ConfigError('''\
 Your .kattisrc file appears corrupted. It must provide a token (or a
@@ -204,10 +80,6 @@ Please download a new .kattisrc file''')
 
 def submit(submit_url, cookies, problem, language, files, mainclass='', tag=''):
     """Make a submission.
-
-    The url_opener argument is an OpenerDirector object to use (as
-    returned by the login() function)
-
     Returns the requests.Result from the submission
     """
 
@@ -227,18 +99,13 @@ def submit(submit_url, cookies, problem, language, files, mainclass='', tag=''):
                                sub_file.read(),
                                'application/octet-stream')))
 
-    return data, requests.post(submit_url, data=data, files=sub_files, cookies=cookies, headers=_HEADERS)
+    return data, requests.post(submit_url, data=data, files=sub_files, cookies=cookies, headers={'User-Agent': 'kattis-cli-submit'})
 
 
 def confirm_or_die(problem, language, files, mainclass, tag):
     print('Problem:', problem)
     print('Language:', language)
     print('Files:', ', '.join(files))
-    if mainclass:
-        if language in _GUESS_MAINFILE:
-            print('Main file:', mainclass)
-        else:
-            print('Mainclass:', mainclass)
     if tag:
         print('Tag:', tag)
     print('Submit (y/N)?')
@@ -247,7 +114,7 @@ def confirm_or_die(problem, language, files, mainclass, tag):
         sys.exit(1)
 
 
-def open_submission(submit_response, cfg, problem_data):
+def open_submission(submit_response, cfg, problem_data, cookies,ip):
     submissions_url = get_url(cfg, 'submissionsurl', 'submissions')
     m = re.search(r'Submission ID: (\d+)', submit_response)
     if m:
@@ -255,38 +122,34 @@ def open_submission(submit_response, cfg, problem_data):
         url = '%s/%s' % (submissions_url, submission_id)
         time.sleep(3)
         data={"script":"true"}
-        login = {"user": "drake-cullen-2246", "password": "xtRkswE6", "script": "true"}
-        res = requests.post("https://open.kattis.com/login", data=login)
-        result = requests.get(url,data=data,cookies=res.cookies)
-        #print(problem_data)
-        print(result.text)
+        result = requests.get(url,data=data,cookies=cookies)
         if (result.text.find("accepted") == -1):
             print("Rejected")
         else:
             difficulty = requests.get(f"https://open.kattis.com/problems/{problem_data['problem']}").text.split("Difficulty",1)[1][18:21]
             print("Accepted", difficulty)
-            requests.get(f"http://172.31.0.151/{difficulty}")
+            print(f"http://{ip}/{difficulty}")
+            if ip is not None:
+                requests.get(f"http://{ip}/{difficulty}")
 
 def main():
     parser = argparse.ArgumentParser(prog='kattis', description='Submit a solution to Kattis')
     parser.add_argument('-p', '--problem',
-                        help=''''Which problem to submit to.
-Overrides default guess (first part of first filename)''')
+                        help=''''Which problem to submit to.''')
     parser.add_argument('-m', '--mainclass',
-                        help='''Sets mainclass.
-Overrides default guess (first part of first filename)''')
+                        help='''Sets mainclass.''')
     parser.add_argument('-l', '--language',
-                        help='''Sets language.
-Overrides default guess (based on suffix of first filename)''')
+                        help='''Sets language.''')
+    parser.add_argument('-i', '--ip',
+                        help='''Sets Candy IP Address.''')
     parser.add_argument('-t', '--tag',
                         help=argparse.SUPPRESS)
-    parser.add_argument('-f', '--force',
-                        help='Force, no confirmation prompt before submission',
-                        action='store_true')
     parser.add_argument('files', nargs='+')
 
     args = parser.parse_args()
     files = args.files
+    ip = args.ip
+    mainclass = None
 
     try:
         cfg = get_config()
@@ -295,8 +158,7 @@ Overrides default guess (based on suffix of first filename)''')
         sys.exit(1)
 
     problem, ext = os.path.splitext(os.path.basename(files[0]))
-    language = guess_language(ext, files)
-    mainclass = guess_mainclass(language, files)
+    language = args.language
     tag = args.tag
 
     problem = problem.lower()
@@ -311,9 +173,7 @@ Overrides default guess (based on suffix of first filename)''')
         language = args.language
 
     if language is None:
-        print('''\
-No language specified, and I failed to guess language from filename
-extension "%s"''' % (ext,))
+        print("No language specified!")
         sys.exit(1)
 
     files = sorted(list(set(args.files)))
@@ -339,8 +199,8 @@ extension "%s"''' % (ext,))
 
     submit_url = get_url(cfg, 'submissionurl', 'submit')
 
-    if not args.force:
-        confirm_or_die(problem, language, files, mainclass, tag)
+
+    confirm_or_die(problem, language, files, mainclass, tag)
 
     try:
         data, result = submit(submit_url,
@@ -368,7 +228,8 @@ extension "%s"''' % (ext,))
     print(plain_result)
 
     try:
-        open_submission(plain_result, cfg, data)
+        login_reply = login_from_config(cfg)
+        open_submission(plain_result, cfg, data,login_reply.cookies,ip)
     except configparser.NoOptionError:
         pass
 
