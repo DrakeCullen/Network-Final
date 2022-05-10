@@ -20,6 +20,8 @@ Note: the -i and -p flags are optional
 Navigate to https://github.com/DrakeCullen/Network-Final/blob/master/ESP32_spinning_dc.ino. Download the source code and paste it into the arduino IDE. Change the ssid and password to your network. 
 <br> <br>
 Add the following URL under file > prefernces > additional board manager: https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json. Now download the esp32 board and upload the code. Open the serial monitor to find the IP address of your ESP32.
+<br> <br>
+You will need to attach the esp32 to an L298n board with the pins specified in the arduino c code. Furthermore, attach the motor to a 9V battery and to the L298n board.
 
 <br>
 
