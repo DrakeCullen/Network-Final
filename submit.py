@@ -120,7 +120,7 @@ def open_submission(submit_response, cfg, problem_data, cookies,ip):
     if m:
         submission_id = m.group(1)
         url = '%s/%s' % (submissions_url, submission_id)
-        time.sleep(3)
+        time.sleep(5)
         data={"script":"true"}
         result = requests.get(url,data=data,cookies=cookies)
         if (result.text.find("accepted") == -1):
