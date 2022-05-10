@@ -3,6 +3,13 @@
 
 <br>
 
+![command video](videos/network_vid_1.gif)
+
+![app video](videos/20220508_185526.gif)
+
+
+<br>
+
 ## Command Line Interface
 Add your .kattisrc file to this directory. Available at: https://open.kattis.com/download/kattisrc <br>
 In order to run the submit client, follow the template below:
